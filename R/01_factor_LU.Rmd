@@ -27,11 +27,13 @@ library(pacman)
 p_load(tidyverse, readxl, janitor)
 ```
 
-## Factor Luzern
+# Number of cars by type in Luzern
 
 We would like to know the number of new registered campervans (Wohnwagen) and light cargo transport (leichte Sachentransportfahrzeuge) up to 8t in the Canton Lucerne. Every year, [Auto Swiss](https://www.auto.swiss/statistiken/nutzfahrzeuge) publishes data on the number of new registered cars in these categories. However, they refer to the whole of Switzerland. The [Bundesamt für Statistik (BfS)](https://www.bfs.admin.ch/bfs/de/home/statistiken/mobilitaet-verkehr/verkehrsinfrastruktur-fahrzeuge/fahrzeuge/strassenfahrzeuge-bestand-motorisierungsgrad.html) on the other hand publishes total car and truck registration according to car category and canton.
 
 From the BfS information, we can derive a yearly proportion of cars in each category that were registered in the Canton Lucerne. We will use this factor to extrapolate the number of sub-categories of Auto Schweiz data for the Canton Lucerne.
+
+## Factor to extrapolate
 
 ```{r eval=FALSE, include=FALSE}
 for(i in 2019:2010) {
@@ -105,4 +107,144 @@ ggplot(BfS, aes(x = year,
   geom_line()
 ```
 
+## auto schweiz data
+
+```{r}
+for(i in 2019:2010) {
+  
+  print(paste("doing year", as.character(i)))
+  
+  if(i >= 2010 & i <= 2013) {
+    
+    file_name <- paste0("data/AutoSchweiz/raw/", i, ".xls")
+    
+  } else {
+    
+    file_name <- paste0("data/AutoSchweiz/raw/", i, ".xlsx")
+  }
+  
+  temp <- read_excel(file_name,
+                     sheet = "Sachentrspfz leicht Jahr", 
+                     na = "-", skip = 9) %>% 
+    clean_names() %>%
+    remove_empty(c("rows", "cols")) %>% 
+    select(1, 12) %>% 
+    filter(x1 == "Gesamttotal") %>% 
+    select(-x1) %>% 
+    dplyr::rename(count = markentotal_lnf) %>% 
+    mutate(type = "stf",
+           subtype = "stf_lite",
+           year = i)
+  
+  
+  if(i == 2019) {
+    
+    SA_stf_lite <- temp
+    
+  } else {
+    
+    SA_stf_lite <- bind_rows(SA_stf_lite, temp)
+    
+  }
+}
+
+
+# stf heavy 
+for(i in 2019:2010) {
+  
+  print(paste("doing year", as.character(i)))
+  
+  if(i >= 2010 & i <= 2013) {
+    
+    file_name <- paste0("data/AutoSchweiz/raw/", i, ".xls")
+    
+  } else {
+    
+    file_name <- paste0("data/AutoSchweiz/raw/", i, ".xlsx")
+  }
+  
+  temp <- read_excel(file_name,
+                     sheet = "Sachentrspfz schwer Jahr", 
+                     na = "-", skip = 9) %>% 
+    clean_names() %>%
+    remove_empty(c("rows", "cols")) %>% 
+    select(1, 2) %>% 
+    filter(x1 == "Gesamttotal") %>% 
+    select(-x1) %>% 
+    dplyr::rename(count = 1) %>% 
+    mutate(type = "stf",
+           subtype = "stf_heavy",
+           year = i)
+  
+  if(i == 2019) {
+    
+    SA_stf_heavy <- temp
+    
+  } else {
+    
+    SA_stf_heavy <- bind_rows(SA_stf_heavy, temp)
+    
+  }
+}
+
+# wohnwagen
+for(i in 2019:2010) {
+  
+  print(paste("doing year", as.character(i)))
+  
+  if(i >= 2010 & i <= 2013) {
+    
+    file_name <- paste0("data/AutoSchweiz/raw/", i, ".xls")
+    
+  } else {
+    
+    file_name <- paste0("data/AutoSchweiz/raw/", i, ".xlsx")
+  }
+  
+  temp <- read_excel(file_name,
+                     sheet = "Personentranspfz Jahr", 
+                     na = "-", skip = 9) %>% 
+    clean_names() %>%
+    remove_empty(c("rows", "cols")) %>% 
+    select(1, 2) %>% 
+    filter(x1 == "Gesamttotal") %>% 
+    select(-x1) %>% 
+    dplyr::rename(count = wohnwagen) %>% 
+    mutate(type = "ww",
+           # subtype = "",
+           year = i)
+  
+  
+  if(i == 2019) {
+    
+    SA_ww <- temp
+    
+  } else {
+    
+    SA_ww <- bind_rows(SA_ww, temp)
+    
+  }
+}
+
+
+SA_stf <- full_join(select(SA_stf_lite, year, count),
+                    select(SA_stf_heavy, year, count),
+                    by = "year") %>% 
+  mutate(count = count.x + count.y) %>% 
+  select(year, count) %>% 
+  mutate(type = "stf")
+
+rm(SA_stf_lite, SA_stf_heavy, temp)
+
+
+SA <- bind_rows(SA_stf, SA_ww)
+
+
+ggplot(SA, aes(x = year, 
+               y = count)) +
+  scale_x_continuous(breaks = c(2010:2019)) +
+  geom_line() +
+  facet_wrap(~type, scale = "free_y")
+
+```
 
