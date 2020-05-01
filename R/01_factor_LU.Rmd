@@ -24,7 +24,7 @@ set.seed(12345)
 options(scipen = 999)
 
 library(pacman) 
-p_load(tidyverse, readxl)
+p_load(tidyverse, readxl, janitor)
 ```
 
 ## Factor Luzern
@@ -34,27 +34,75 @@ We would like to know the number of new registered campervans (Wohnwagen) and li
 From the BfS information, we can derive a yearly proportion of cars in each category that were registered in the Canton Lucerne. We will use this factor to extrapolate the number of sub-categories of Auto Schweiz data for the Canton Lucerne.
 
 ```{r eval=FALSE, include=FALSE}
-BfS_2019 <- read_xls("data/BFS/raw/BFS_Fahrzeugbestand_CH.xlsx", 
-                  sheet = "2019", na = "-") %>% 
-  clean_names() %>%
-  remove_empty(c("rows", "cols")) %>% 
-  select(-starts_with("score_")) %>% 
-  dplyr::rename(SSC_CODE16 = x1,
-                SSC_NAME16 = x2,
-                IRSD = decile_4,
-                IRSAD = decile_6,
-                IER = decile_8,
-                IEO = decile_10,
-                URP = x11,
-                caution = x12) %>% 
-  mutate(SSC_CODE16 = as.integer(SSC_CODE16),
-         IRSD = as.integer(IRSD),
-         IRSAD = as.integer(IRSAD),
-         IER = as.integer(IER),
-         IEO = as.integer(IEO),
-         URP = as.integer(URP)
-  ) %>% 
-  mutate(caution = as.logical(ifelse(is.na(caution), "False", "True")))
+for(i in 2019:2010) {
+  
+  print(paste("doing year", as.character(i)))
+  
+  if(i >= 2017 & i <= 2019) {
+    
+    temp <- read_excel("data/BFS/raw/BFS_Fahrzeugbestand_CH.xlsx",
+                       sheet = as.character(i), 
+                       na = "-", skip = 2) %>% 
+      clean_names() %>%
+      remove_empty(c("rows", "cols")) %>% 
+      select(x1, personen_wagen, sachen_transport_fahrzeuge) %>% 
+      dplyr::rename(canton = x1,
+                    pw = personen_wagen,
+                    stf = sachen_transport_fahrzeuge) %>% 
+      filter(canton %in% c("Total", "Luzern")) %>% 
+      pivot_wider(id_cols = canton, 
+                  names_from = canton,
+                  values_from = c(pw, stf)) %>% 
+      mutate(year = i,
+             pw = pw_Luzern / pw_Total,
+             stf = stf_Luzern / stf_Total) %>% 
+      select(-starts_with("pw_"), -starts_with("stf_")) %>% 
+      pivot_longer(-year, names_to = "type", values_to ="factor")
+    
+    if(i == 2019) {
+      
+      BfS <- temp
+      
+    } else {
+      
+      BfS <- bind_rows(BfS, temp)
+      
+    }
+  }
+  
+  # different excel format on top to skip rows :/
+  if(i >= 2010 & i <= 2016) {
+    
+    temp <- read_excel("data/BFS/raw/BFS_Fahrzeugbestand_CH.xlsx",
+                       sheet = as.character(i), 
+                       na = "-", skip = 4) %>% 
+      clean_names() %>%
+      remove_empty(c("rows", "cols")) %>% 
+      select(x1, personen_wagen, sachen_transport_fahrzeuge) %>% 
+      dplyr::rename(canton = x1,
+                    pw = personen_wagen,
+                    stf = sachen_transport_fahrzeuge) %>% 
+      filter(canton %in% c("Total", "Luzern")) %>% 
+      pivot_wider(id_cols = canton, 
+                  names_from = canton,
+                  values_from = c(pw, stf)) %>% 
+      mutate(year = as.integer(i),
+             pw = pw_Luzern / pw_Total,
+             stf = stf_Luzern / stf_Total) %>% 
+      select(-starts_with("pw_"), -starts_with("stf_")) %>% 
+      pivot_longer(-year, names_to = "type", values_to ="factor")
+    
+    BfS <- bind_rows(BfS, temp)
+    
+  }
+}
+
+ggplot(BfS, aes(x = year, 
+                y = factor, 
+                color = type)) +
+  scale_x_continuous(breaks = c(2010:2019)) +
+  scale_y_continuous(limits = c(0, 0.075)) +
+  geom_line()
 ```
 
 
