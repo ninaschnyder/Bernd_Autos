@@ -1,0 +1,60 @@
+---
+title: "Autoimmatrikulationen Kanton Luzern"
+subtitle: "factor_LU"
+author: "Nina & Radek"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  html_document: 
+    highlight: pygments
+    keep_md: no
+    number_sections: yes
+    theme: united
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, fig.width=8, fig.height=6, dpi=300, out.width="800px", out.height="600px")
+
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+set.seed(12345)
+options(scipen = 999)
+
+library(pacman) 
+p_load(tidyverse, readxl)
+```
+
+## Factor Luzern
+
+We would like to know the number of new registered campervans (Wohnwagen) and light cargo transport (leichte Sachentransportfahrzeuge) up to 8t in the Canton Lucerne. Every year, [Auto Swiss](https://www.auto.swiss/statistiken/nutzfahrzeuge) publishes data on the number of new registered cars in these categories. However, they refer to the whole of Switzerland. The [Bundesamt für Statistik (BfS)](https://www.bfs.admin.ch/bfs/de/home/statistiken/mobilitaet-verkehr/verkehrsinfrastruktur-fahrzeuge/fahrzeuge/strassenfahrzeuge-bestand-motorisierungsgrad.html) on the other hand publishes total car and truck registration according to car category and canton.
+
+From the BfS information, we can derive a yearly proportion of cars in each category that were registered in the Canton Lucerne. We will use this factor to extrapolate the number of sub-categories of Auto Schweiz data for the Canton Lucerne.
+
+```{r eval=FALSE, include=FALSE}
+BfS_2019 <- read_xls("data/BFS/raw/BFS_Fahrzeugbestand_CH.xlsx", 
+                  sheet = "2019", na = "-") %>% 
+  clean_names() %>%
+  remove_empty(c("rows", "cols")) %>% 
+  select(-starts_with("score_")) %>% 
+  dplyr::rename(SSC_CODE16 = x1,
+                SSC_NAME16 = x2,
+                IRSD = decile_4,
+                IRSAD = decile_6,
+                IER = decile_8,
+                IEO = decile_10,
+                URP = x11,
+                caution = x12) %>% 
+  mutate(SSC_CODE16 = as.integer(SSC_CODE16),
+         IRSD = as.integer(IRSD),
+         IRSAD = as.integer(IRSAD),
+         IER = as.integer(IER),
+         IEO = as.integer(IEO),
+         URP = as.integer(URP)
+  ) %>% 
+  mutate(caution = as.logical(ifelse(is.na(caution), "False", "True")))
+```
+
+
