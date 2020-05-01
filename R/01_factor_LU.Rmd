@@ -49,16 +49,17 @@ for(i in 2019:2010) {
       remove_empty(c("rows", "cols")) %>% 
       select(x1, personen_wagen, sachen_transport_fahrzeuge) %>% 
       dplyr::rename(canton = x1,
-                    pw = personen_wagen,
-                    stf = sachen_transport_fahrzeuge) %>% 
+                    Wohnwagen = personen_wagen,
+                    Nutzfahrzeuge = sachen_transport_fahrzeuge) %>% 
       filter(canton %in% c("Total", "Luzern")) %>% 
       pivot_wider(id_cols = canton, 
                   names_from = canton,
-                  values_from = c(pw, stf)) %>% 
+                  values_from = c(Wohnwagen, Nutzfahrzeuge)) %>% 
       mutate(year = i,
-             pw = pw_Luzern / pw_Total,
-             stf = stf_Luzern / stf_Total) %>% 
-      select(-starts_with("pw_"), -starts_with("stf_")) %>% 
+             Wohnwagen = Wohnwagen_Luzern / Wohnwagen_Total,
+             Nutzfahrzeuge = Nutzfahrzeuge_Luzern / Nutzfahrzeuge_Total) %>% 
+      select(-starts_with("Wohnwagen_"),
+             -starts_with("Nutzfahrzeuge_")) %>% 
       pivot_longer(-year, names_to = "type", values_to ="factor")
     
     if(i == 2019) {
@@ -82,16 +83,17 @@ for(i in 2019:2010) {
       remove_empty(c("rows", "cols")) %>% 
       select(x1, personen_wagen, sachen_transport_fahrzeuge) %>% 
       dplyr::rename(canton = x1,
-                    pw = personen_wagen,
-                    stf = sachen_transport_fahrzeuge) %>% 
+                    Wohnwagen = personen_wagen,
+                    Nutzfahrzeuge = sachen_transport_fahrzeuge) %>% 
       filter(canton %in% c("Total", "Luzern")) %>% 
       pivot_wider(id_cols = canton, 
                   names_from = canton,
-                  values_from = c(pw, stf)) %>% 
-      mutate(year = as.integer(i),
-             pw = pw_Luzern / pw_Total,
-             stf = stf_Luzern / stf_Total) %>% 
-      select(-starts_with("pw_"), -starts_with("stf_")) %>% 
+                  values_from = c(Wohnwagen, Nutzfahrzeuge)) %>% 
+      mutate(year = i,
+             Wohnwagen = Wohnwagen_Luzern / Wohnwagen_Total,
+             Nutzfahrzeuge = Nutzfahrzeuge_Luzern / Nutzfahrzeuge_Total) %>% 
+      select(-starts_with("Wohnwagen_"),
+             -starts_with("Nutzfahrzeuge_")) %>% 
       pivot_longer(-year, names_to = "type", values_to ="factor")
     
     BfS <- bind_rows(BfS, temp)
@@ -99,12 +101,22 @@ for(i in 2019:2010) {
   }
 }
 
-ggplot(BfS, aes(x = year, 
-                y = factor, 
-                color = type)) +
-  scale_x_continuous(breaks = c(2010:2019)) +
-  scale_y_continuous(limits = c(0, 0.075)) +
-  geom_line()
+BfS %>% 
+  rename(Typ = type) %>% 
+  mutate(factor = factor * 100) %>% 
+  ggplot(aes(x = year, 
+             y = factor, 
+             color = Typ)) +
+  scale_x_continuous(breaks = seq(2010, 2018, 2)) +
+  scale_y_continuous(limits = c(0, 7.5)) +
+  geom_line() + 
+  labs(title = "Prozent Autos registriert in LU verglichen mit ganzer CH",
+       caption = "Datenquelle: BfS") +
+  xlab("Jahr") +
+  ylab("Prozent") + 
+  theme_light()
+
+ggsave("graphs/Prozent_LU.png", width = 16, height = 10, units = "cm", dpi = 300)
 ```
 
 ## auto schweiz data
@@ -132,7 +144,7 @@ for(i in 2019:2010) {
     filter(x1 == "Gesamttotal") %>% 
     select(-x1) %>% 
     dplyr::rename(count = markentotal_lnf) %>% 
-    mutate(type = "stf",
+    mutate(type = "Nutzfahrzeuge",
            subtype = "stf_lite",
            year = i)
   
@@ -149,7 +161,7 @@ for(i in 2019:2010) {
 }
 
 
-# stf heavy 
+# Nutzfahrzeuge heavy 
 for(i in 2019:2010) {
   
   print(paste("doing year", as.character(i)))
@@ -172,7 +184,7 @@ for(i in 2019:2010) {
     filter(x1 == "Gesamttotal") %>% 
     select(-x1) %>% 
     dplyr::rename(count = 1) %>% 
-    mutate(type = "stf",
+    mutate(type = "Nutzfahrzeuge",
            subtype = "stf_heavy",
            year = i)
   
@@ -210,7 +222,7 @@ for(i in 2019:2010) {
     filter(x1 == "Gesamttotal") %>% 
     select(-x1) %>% 
     dplyr::rename(count = wohnwagen) %>% 
-    mutate(type = "ww",
+    mutate(type = "Wohnwagen",
            # subtype = "",
            year = i)
   
@@ -226,25 +238,51 @@ for(i in 2019:2010) {
   }
 }
 
-
 SA_stf <- full_join(select(SA_stf_lite, year, count),
                     select(SA_stf_heavy, year, count),
                     by = "year") %>% 
   mutate(count = count.x + count.y) %>% 
   select(year, count) %>% 
-  mutate(type = "stf")
+  mutate(type = "Nutzfahrzeuge")
 
 rm(SA_stf_lite, SA_stf_heavy, temp)
 
-
 SA <- bind_rows(SA_stf, SA_ww)
 
+data <- full_join(SA, BfS) %>% 
+  mutate(count_lu = round(count * factor))
 
-ggplot(SA, aes(x = year, 
-               y = count)) +
-  scale_x_continuous(breaks = c(2010:2019)) +
+ggplot(data, aes(x = year, 
+                 y = count_lu)) +
+  scale_x_continuous(breaks = seq(2008, 2018, 2)) +
   geom_line() +
-  facet_wrap(~type, scale = "free_y")
+  facet_wrap(~type, scale = "free_y") +
+  xlab("Jahr") + 
+  ylab("Neuimmatrikulation") + 
+  labs(
+    title = "Neuimmatrikulationen von Wohnwagen und Nutzfahrzeuge \nbis 7t im Kt. Luzern, separat",
+    caption = "Datenquelle: Bundesamt für Statistik (BfS), Auto Schweiz"
+  ) + 
+  theme_light()
 
+ggsave("graphs/Typ.png", width = 16, height = 10, units = "cm", dpi = 300)
+
+totals <- data %>% 
+  group_by(year) %>% 
+  summarize(count_lu = sum(count_lu))
+
+ggplot(totals, aes(x = year, 
+                   y = count_lu)) +
+  scale_x_continuous(breaks = seq(2008, 2018, 2)) +
+  geom_line() +
+  xlab("Jahr") + 
+  ylab("Neuimmatrikulation") + 
+  labs(
+    title = "Neuimmatrikulationen von Wohnwagen und Nutzfahrzeuge \nbis 7t im Kt. Luzern, total",
+    caption = "Datenquelle: Bundesamt für Statistik (BfS), Auto Schweiz"
+  ) + 
+  theme_light()
+
+ggsave("graphs/Total.png", width = 16, height = 10, units = "cm", dpi = 300)
 ```
 
