@@ -29,7 +29,7 @@ p_load(tidyverse, readxl, janitor)
 
 # Number of cars by type in Luzern
 
-We would like to know the number of new registered campervans (Wohnwagen) and light cargo transport (leichte Sachentransportfahrzeuge) up to 8t in the Canton Lucerne. Every year, [Auto Swiss](https://www.auto.swiss/statistiken/nutzfahrzeuge) publishes data on the number of new registered cars in these categories. However, they refer to the whole of Switzerland. The [Bundesamt für Statistik (BfS)](https://www.bfs.admin.ch/bfs/de/home/statistiken/mobilitaet-verkehr/verkehrsinfrastruktur-fahrzeuge/fahrzeuge/strassenfahrzeuge-bestand-motorisierungsgrad.html) on the other hand publishes total car and truck registration according to car category and canton.
+We would like to know the number of new registered campervans (Wohnmobil) and light cargo transport (leichte Sachentransportfahrzeuge) up to 8t in the Canton Lucerne. Every year, [Auto Swiss](https://www.auto.swiss/statistiken/nutzfahrzeuge) publishes data on the number of new registered cars in these categories. However, they refer to the whole of Switzerland. The [Bundesamt für Statistik (BfS)](https://www.bfs.admin.ch/bfs/de/home/statistiken/mobilitaet-verkehr/verkehrsinfrastruktur-fahrzeuge/fahrzeuge/strassenfahrzeuge-bestand-motorisierungsgrad.html) on the other hand publishes total car and truck registration according to car category and canton.
 
 From the BfS information, we can derive a yearly proportion of cars in each category that were registered in the Canton Lucerne. We will use this factor to extrapolate the number of sub-categories of Auto Schweiz data for the Canton Lucerne.
 
@@ -49,16 +49,16 @@ for(i in 2019:2010) {
       remove_empty(c("rows", "cols")) %>% 
       select(x1, personen_wagen, sachen_transport_fahrzeuge) %>% 
       dplyr::rename(canton = x1,
-                    Wohnwagen = personen_wagen,
+                    Wohnmobil = personen_wagen,
                     Nutzfahrzeuge = sachen_transport_fahrzeuge) %>% 
       filter(canton %in% c("Total", "Luzern")) %>% 
       pivot_wider(id_cols = canton, 
                   names_from = canton,
-                  values_from = c(Wohnwagen, Nutzfahrzeuge)) %>% 
+                  values_from = c(Wohnmobil, Nutzfahrzeuge)) %>% 
       mutate(year = i,
-             Wohnwagen = Wohnwagen_Luzern / Wohnwagen_Total,
+             Wohnmobil = Wohnmobil_Luzern / Wohnmobil_Total,
              Nutzfahrzeuge = Nutzfahrzeuge_Luzern / Nutzfahrzeuge_Total) %>% 
-      select(-starts_with("Wohnwagen_"),
+      select(-starts_with("Wohnmobil_"),
              -starts_with("Nutzfahrzeuge_")) %>% 
       pivot_longer(-year, names_to = "type", values_to ="factor")
     
@@ -83,16 +83,16 @@ for(i in 2019:2010) {
       remove_empty(c("rows", "cols")) %>% 
       select(x1, personen_wagen, sachen_transport_fahrzeuge) %>% 
       dplyr::rename(canton = x1,
-                    Wohnwagen = personen_wagen,
+                    Wohnmobil = personen_wagen,
                     Nutzfahrzeuge = sachen_transport_fahrzeuge) %>% 
       filter(canton %in% c("Total", "Luzern")) %>% 
       pivot_wider(id_cols = canton, 
                   names_from = canton,
-                  values_from = c(Wohnwagen, Nutzfahrzeuge)) %>% 
+                  values_from = c(Wohnmobil, Nutzfahrzeuge)) %>% 
       mutate(year = i,
-             Wohnwagen = Wohnwagen_Luzern / Wohnwagen_Total,
+             Wohnmobil = Wohnmobil_Luzern / Wohnmobil_Total,
              Nutzfahrzeuge = Nutzfahrzeuge_Luzern / Nutzfahrzeuge_Total) %>% 
-      select(-starts_with("Wohnwagen_"),
+      select(-starts_with("Wohnmobil_"),
              -starts_with("Nutzfahrzeuge_")) %>% 
       pivot_longer(-year, names_to = "type", values_to ="factor")
     
@@ -199,7 +199,7 @@ for(i in 2019:2010) {
   }
 }
 
-# wohnwagen
+# Wohnmobil
 for(i in 2019:2010) {
   
   print(paste("doing year", as.character(i)))
@@ -221,8 +221,8 @@ for(i in 2019:2010) {
     select(1, 2) %>% 
     filter(x1 == "Gesamttotal") %>% 
     select(-x1) %>% 
-    dplyr::rename(count = wohnwagen) %>% 
-    mutate(type = "Wohnwagen",
+    dplyr::rename(count = Wohnmobil) %>% 
+    mutate(type = "Wohnmobil",
            # subtype = "",
            year = i)
   
@@ -260,7 +260,7 @@ ggplot(data, aes(x = year,
   xlab("Jahr") + 
   ylab("Neuimmatrikulation") + 
   labs(
-    title = "Neuimmatrikulationen von Wohnwagen und Nutzfahrzeuge \nbis 7t im Kt. Luzern, separat",
+    title = "Neuimmatrikulationen von Wohnmobil und Nutzfahrzeuge \nbis 7t im Kt. Luzern, separat",
     caption = "Datenquelle: Bundesamt für Statistik (BfS), Auto Schweiz"
   ) + 
   theme_light()
@@ -278,7 +278,7 @@ ggplot(totals, aes(x = year,
   xlab("Jahr") + 
   ylab("Neuimmatrikulation") + 
   labs(
-    title = "Neuimmatrikulationen von Wohnwagen und Nutzfahrzeuge \nbis 7t im Kt. Luzern, total",
+    title = "Neuimmatrikulationen von Wohnmobil und Nutzfahrzeuge \nbis 7t im Kt. Luzern, total",
     caption = "Datenquelle: Bundesamt für Statistik (BfS), Auto Schweiz"
   ) + 
   theme_light()
